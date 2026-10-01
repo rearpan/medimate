@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediMate - Smart Medication Companion & Health Hub</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    html {
+      transition: font-size 0.2s ease-in-out;
+      font-size: 16px;
+    }
+    html.text-size-md { font-size: 18px; }
+    html.text-size-lg { font-size: 20px; }
+    html.text-size-xl { font-size: 22px; }
+
+    .high-contrast {
+      background-color: #000000 !important;
+      color: #ffff00 !important;
+    }
+    .high-contrast .bg-card, 
+    .high-contrast div, 
+    .high-contrast main,
+    .high-contrast section {
+      background-color: #1a1a1a !important;
+      border-color: #ffff00 !important;
+      color: #ffffff !important;
+    }
+    .high-contrast button {
+      background-color: #ffff00 !important;
+      color: #000000 !important;
+      font-weight: bold !important;
+    }
+    .high-contrast input, .high-contrast select {
+      background-color: #333333 !important;
+      color: #ffffff !important;
+      border-color: #ffff00 !important;
+    }
+
+    @keyframes pulse-ring {
+      0% { transform: scale(0.98); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
+      70% { transform: scale(1.02); box-shadow: 0 0 0 25px rgba(220, 38, 38, 0); }
+      100% { transform: scale(0.98); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+    }
+    .alarm-active { animation: pulse-ring 1.2s infinite; }
+
+    @keyframes sos-glow {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+    .sos-pulse { animation: sos-glow 1.5s infinite; }
+  </style>
+</head>
+<body id="app-body" class="bg-blue-50 min-h-screen text-gray-800 font-sans transition-all duration-200">
+
+  <!-- ACCESSIBILITY TOAST NOTIFICATION -->
+  <div id="toast-notify" class="fixed bottom-6 right-6 z-50 bg-gray-900 text-white px-5 py-3 rounded-2xl shadow-2xl font-bold text-sm hidden items-center gap-2 border border-gray-700 transition transform duration-300">
+    <i class="fa-solid fa-circle-info text-yellow-400"></i>
+    <span id="toast-msg">Text size updated</span>
+  </div>
+
+  <!-- EMERGENCY SOS SIMULATED CALL OVERLAY -->
+  <div id="sos-modal" style="display: none;" class="fixed inset-0 z-50 bg-red-950/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 text-center shadow-2xl border-4 border-red-600 alarm-active">
+      <div class="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl animate-bounce">
+        <i class="fa-solid fa-phone-flip"></i>
+      </div>
+      <span class="inline-block px-3 py-1 bg-red-100 text-red-700 font-black rounded-full text-xs uppercase tracking-wider mb-2">Emergency Response Active</span>
+      <h2 class="text-3xl font-black text-gray-900">Connecting SOS...</h2>
+      <p class="text-sm text-gray-600 mt-1">Contacting Medical Dispatch & Emergency Services</p>
+      
+      <div class="my-6 p-4 bg-red-50 rounded-2xl border border-red-200">
+        <div class="flex justify-between items-center text-sm font-bold text-red-800 mb-1">
+          <span>Call Status:</span>
+          <span id="sos-status-text" class="animate-pulse">Dialing Dispatch...</span>
+        </div>
+        <div class="w-full bg-red-200 rounded-full h-3 overflow-hidden">
+          <div id="sos-progress-bar" class="bg-red-600 h-3 rounded-full transition-all duration-1000 w-1/4"></div>
+        </div>
+        <p class="text-xs text-gray-500 mt-2">Broadcasting GPS Location & Medical Profile...</p>
+      </div>
+
+      <div class="flex justify-center items-center gap-3">
+        <button type="button" onclick="cancelSosCall()" class="w-full bg-gray-900 hover:bg-black text-white font-extrabold py-3.5 px-6 rounded-2xl text-lg flex items-center justify-center gap-2 shadow-lg">
+          <i class="fa-solid fa-phone-slash"></i> Cancel Call
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 1: ONBOARDING SCREEN -->
+  <div id="onboarding-screen" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-600 to-indigo-800">
+    <div class="bg-white rounded-3xl shadow-2xl p-6 sm:p-10 max-w-lg w-full border-4 border-blue-200">
+      
+      <div class="text-center mb-8">
+        <div class="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl shadow-inner">
+          <i class="fa-solid fa-notes-medical"></i>
+        </div>
+        <h1 class="text-4xl font-black text-blue-900 tracking-tight">Welcome to MediMate</h1>
+        <p class="text-gray-600 text-lg mt-2 font-medium">Your personal medication manager & smart health hub.</p>
+      </div>
+
+      <form id="onboarding-form" class="space-y-5" onsubmit="return saveUserProfile(event)">
+        <div>
+          <label class="block text-lg font-bold text-gray-700 mb-1">
+            <i class="fa-solid fa-user text-blue-600"></i> Full Name
+          </label>
+          <input type="text" id="user-name" required placeholder="e.g. Alex Smith" 
+                 class="w-full p-4 text-xl border-2 border-blue-300 rounded-2xl focus:border-blue-600 focus:outline-none shadow-sm">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-lg font-bold text-gray-700 mb-1">
+              <i class="fa-solid fa-cake-candles text-blue-600"></i> Age
+            </label>
+            <input type="number" id="user-age" min="1" max="120" required placeholder="e.g. 25" 
+                   class="w-full p-4 text-xl border-2 border-blue-300 rounded-2xl focus:border-blue-600 focus:outline-none shadow-sm">
+          </div>
+
+          <div>
+            <label class="block text-lg font-bold text-gray-700 mb-1">
+              <i class="fa-solid fa-droplet text-red-600"></i> Blood Group
+            </label>
+            <select id="user-blood" required class="w-full p-4 text-xl border-2 border-blue-300 rounded-2xl focus:border-blue-600 focus:outline-none bg-white shadow-sm">
+              <option value="">Select...</option>
+              <option value="A+">A+</option>
+              <option value="A-">A-</option>
+              <option value="B+">B+</option>
+              <option value="B-">B-</option>
+              <option value="O+">O+</option>
+              <option value="O-">O-</option>
+              <option value="AB+">AB+</option>
+              <option value="AB-">AB-</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" id="submit-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-extrabold text-2xl py-4 rounded-2xl shadow-xl transition duration-200 flex items-center justify-center gap-3 cursor-pointer mt-4">
+          <span>Continue to MediMate</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- PAGE 2: MAIN APP INTERFACE -->
+  <div id="main-app" style="display: none;">
+
+    <!-- HEADER / ACCESSIBILITY BAR -->
+    <header class="bg-blue-700 text-white shadow-xl sticky top-0 z-40">
+      <div class="max-w-6xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-4">
+        
+        <div class="flex items-center space-x-3">
+          <i class="fa-solid fa-capsules text-4xl text-yellow-300"></i>
+          <div>
+            <h1 class="text-3xl font-black tracking-wide">MediMate</h1>
+            <p class="text-xs text-blue-200 font-semibold">Disease & Side-Effects Lookup Hub</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <button type="button" onclick="toggleTextSize()" class="bg-blue-600 hover:bg-blue-500 active:scale-95 px-3.5 py-2 rounded-xl font-bold text-sm flex items-center gap-1.5 shadow transition">
+            <i class="fa-solid fa-font text-yellow-300"></i> 
+            <span id="text-size-btn-label">Text Size (Normal)</span>
+          </button>
+          <button type="button" onclick="toggleContrast()" class="bg-yellow-500 hover:bg-yellow-400 text-blue-950 px-3 py-2 rounded-xl font-extrabold text-sm flex items-center gap-1.5 shadow">
+            <i class="fa-solid fa-circle-half-stroke"></i> Contrast
+          </button>
+          <button type="button" onclick="requestNotificationPermission()" class="bg-green-600 hover:bg-green-500 px-3 py-2 rounded-xl font-bold text-sm flex items-center gap-1.5 shadow">
+            <i class="fa-solid fa-bell"></i> Alerts
+          </button>
+          <button type="button" onclick="resetProfile()" class="bg-red-500 hover:bg-red-600 px-3 py-2 rounded-xl font-bold text-sm flex items-center gap-1 shadow">
+            <i class="fa-solid fa-arrows-rotate"></i> Reset
+          </button>
+
+          <button type="button" onclick="triggerSosCallSequence()" class="bg-red-600 hover:bg-red-700 text-white px-3.5 py-2 rounded-xl font-black text-sm flex items-center gap-1.5 shadow-lg border border-red-300 sos-pulse transition transform active:scale-95">
+            <i class="fa-solid fa-truck-medical text-yellow-300 animate-bounce"></i>
+            <span>SOS</span>
+          </button>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- USER WELCOME BANNER -->
+    <section class="max-w-6xl mx-auto px-4 pt-6">
+      <div class="bg-blue-900 text-white p-5 rounded-2xl shadow-md flex flex-wrap justify-between items-center gap-4 border-b-4 border-blue-500">
+        <div class="flex items-center space-x-4">
+          <div class="w-14 h-14 bg-blue-700 rounded-full flex items-center justify-center text-2xl font-bold border-2 border-blue-300">
+            <i class="fa-solid fa-user-check"></i>
+          </div>
+          <div>
+            <h2 class="text-2xl font-extrabold" id="profile-display-name">Hello, User</h2>
+            <p class="text-sm text-blue-200" id="profile-display-details">Age: -- | Blood Group: --</p>
+          </div>
+        </div>
+        <button type="button" onclick="speakWelcomeMessage()" class="bg-blue-700 hover:bg-blue-600 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 border border-blue-400 shadow">
+          <i class="fa-solid fa-volume-high text-lg"></i> Read Profile
+        </button>
+      </div>
+    </section>
+
+    <!-- ALARM ALERT BANNER -->
+    <section class="max-w-6xl mx-auto px-4 pt-4">
+      <div id="alarm-banner" style="display: none;" class="bg-red-600 text-white p-6 rounded-3xl shadow-2xl border-4 border-red-300 alarm-active">
+        <div class="flex items-center justify-between flex-wrap gap-4">
+          <div class="flex items-center space-x-4">
+            <i class="fa-solid fa-bell text-5xl animate-bounce"></i>
+            <div>
+              <h3 class="text-3xl font-black">MEDIMATE REMINDER!</h3>
+              <p id="alarm-text" class="text-xl font-bold mt-1">It's time to take your medicine!</p>
+            </div>
+          </div>
+          <button type="button" onclick="handleAlarmTakenAction()" class="bg-white text-red-600 px-8 py-4 rounded-2xl font-black text-xl shadow-lg hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
+            <i class="fa-solid fa-check-circle text-2xl"></i> I Took It
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAIN DASHBOARD -->
+    <main class="max-w-6xl mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- LEFT COLUMN: ADD MEDICINE WITH AI SEARCH -->
+      <section class="lg:col-span-5">
+        <div class="bg-card bg-white p-6 rounded-3xl shadow-md border-2 border-blue-100 sticky top-24">
+          <h2 class="text-2xl font-extrabold text-blue-900 mb-2 flex items-center gap-2">
+            <i class="fa-solid fa-prescription-bottle-medical text-blue-600"></i> Add Medicine
+          </h2>
+          <p class="text-sm text-gray-600 mb-5">Type medicine name for instant AI search on <b>why it's taken</b> & <b>side effects</b>.</p>
+
+          <form id="med-form" class="space-y-4" onsubmit="return handleAddMedicine(event)">
+            <div>
+              <label class="block text-base font-bold text-gray-800 mb-1">Medicine Name</label>
+              <div class="flex gap-2">
+                <input type="text" id="med-name" required placeholder="e.g. Paracetamol, Metformin, Amoxicillin" 
+                       class="w-full p-4 border-2 border-blue-200 rounded-2xl focus:border-blue-600 focus:outline-none text-xl">
+                <button type="button" onclick="searchMedicineOnline()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 rounded-2xl font-bold flex items-center gap-1.5 shadow">
+                  <i class="fa-solid fa-robot text-lg text-yellow-300"></i>
+                  <span class="hidden sm:inline">Search</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- ONLINE AI SEARCH PREVIEW BOX WITH TREATS & SIDE EFFECTS -->
+            <div id="search-preview-box" style="display: none;" class="p-4 rounded-2xl bg-indigo-50 border-2 border-indigo-200 space-y-3">
+              <div class="flex items-center justify-between mb-1">
+                <span class="font-bold text-indigo-900 text-sm flex items-center gap-1.5">
+                  <i class="fa-solid fa-stethoscope text-indigo-600"></i> What It Treats & Side Effects:
+                </span>
+                <button type="button" onclick="speakText(document.getElementById('online-desc-text').innerText)" class="text-indigo-700 font-bold text-xs bg-indigo-100 px-2 py-1 rounded-lg">
+                  <i class="fa-solid fa-volume-high"></i> Listen
+                </button>
+              </div>
+              
+              <div class="text-sm text-gray-800 font-medium leading-relaxed">
+                <div id="online-desc-text">Searching database...</div>
+                <button type="button" id="preview-read-more-btn" style="display: none;" onclick="toggleReadMorePreview()" class="mt-2 text-indigo-700 font-extrabold text-xs underline focus:outline-none hover:text-indigo-900 flex items-center gap-1">
+                  <span id="preview-btn-label">Read More</span> <i id="preview-read-icon" class="fa-solid fa-chevron-down text-[10px]"></i>
+                </button>
+              </div>
+              
+              <div id="buy-action-area" class="pt-2 border-t border-indigo-200 flex flex-wrap items-center justify-between gap-2" style="display: none;">
+                <span class="text-xs text-indigo-900 font-bold flex items-center gap-1">
+                  <i class="fa-solid fa-cart-shopping text-emerald-600"></i> Direct Purchase Link
+                </span>
+                <a id="buy-now-btn" href="#" target="_blank" rel="noopener noreferrer" 
+                   class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-black flex items-center gap-2 shadow transition transform active:scale-95">
+                  <i class="fa-solid fa-bag-shopping"></i> Buy Now
+                </a>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-base font-bold text-gray-800 mb-1">Daily Dose</label>
+                <input type="text" id="med-dosage" required placeholder="e.g. 1 Tablet / 500mg" 
+                       class="w-full p-4 border-2 border-blue-200 rounded-2xl focus:border-blue-600 focus:outline-none text-lg">
+              </div>
+
+              <div>
+                <label class="block text-base font-bold text-gray-800 mb-1">Times Daily</label>
+                <select id="med-frequency" onchange="generateTimePickers()" class="w-full p-4 border-2 border-blue-200 rounded-2xl focus:border-blue-600 focus:outline-none text-lg bg-white">
+                  <option value="1">1 Time / Day</option>
+                  <option value="2">2 Times / Day</option>
+                  <option value="3">3 Times / Day</option>
+                  <option value="4">4 Times / Day</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-base font-bold text-gray-800 mb-1">Course Duration</label>
+              <select id="med-duration" class="w-full p-4 border-2 border-blue-200 rounded-2xl focus:border-blue-600 focus:outline-none text-lg bg-white font-bold text-blue-900">
+                <option value="1">1 Day Course</option>
+                <option value="2">2 Days Course</option>
+                <option value="3">3 Days Course</option>
+                <option value="4">4 Days Course</option>
+                <option value="5">5 Days Course</option>
+                <option value="6">6 Days Course</option>
+                <option value="7">7 Days Course</option>
+                <option value="8">8 Days Course</option>
+                <option value="9">9 Days Course</option>
+                <option value="10">10 Days Course</option>
+                <option value="life">Entire Life / Lifetime</option>
+              </select>
+            </div>
+
+            <!-- DYNAMIC SCHEDULED TIMES AREA -->
+            <div id="scheduled-times-container" class="space-y-3">
+              <!-- Dynamically populated based on Times Daily -->
+            </div>
+
+            <div>
+              <label class="block text-base font-bold text-gray-800 mb-1">Meal Instruction</label>
+              <select id="med-food" class="w-full p-4 border-2 border-blue-200 rounded-2xl focus:border-blue-600 focus:outline-none text-lg bg-white">
+                <option value="After Food">After Food (Post-Meal)</option>
+                <option value="Before Food">Before Food (Empty Stomach)</option>
+                <option value="With Meal">With Meal</option>
+              </select>
+            </div>
+
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-4 rounded-2xl shadow-xl transition text-xl flex items-center justify-center gap-2 mt-2">
+              <i class="fa-solid fa-plus-circle"></i> Add To Schedule
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <!-- RIGHT COLUMN: SCHEDULE & DRUG DETAILS -->
+      <section class="lg:col-span-7 space-y-6">
+
+        <div class="bg-card bg-white p-6 rounded-3xl shadow-md border-2 border-blue-100">
+          <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+            <h2 class="text-2xl font-black text-blue-900 flex items-center gap-2">
+              <i class="fa-solid fa-calendar-day text-blue-600"></i> My Schedule
+            </h2>
+            <span id="clock-display" class="bg-blue-100 text-blue-900 font-bold px-3 py-1.5 rounded-xl text-base">--:--</span>
+          </div>
+
+          <div id="med-list" class="space-y-4">
+            <!-- Dynamic Cards Injected Here -->
+          </div>
+        </div>
+
+        <!-- COMMON MEDICINES QUICK LOOKUP -->
+        <div class="bg-card bg-white p-6 rounded-3xl shadow-md border-2 border-blue-100">
+          <h2 class="text-xl font-bold text-blue-900 mb-3 flex items-center gap-2">
+            <i class="fa-solid fa-book-medical text-indigo-600"></i> Common Medicines & Disease Guide
+          </h2>
+          <p class="text-sm text-gray-600 mb-4">Quick facts on standard medicines, why they are prescribed, and side effects:</p>
+
+          <div class="space-y-3" id="knowledge-base">
+            <!-- Injected dynamically -->
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    // Detailed Local Database with Treatment Info
+    const localDrugDatabase = {
+      "metformin": {
+        treats: "Type 2 Diabetes",
+        description: "Lowers blood sugar levels by improving body sensitivity to insulin and reducing glucose produced by the liver.",
+        sideEffects: "Nausea, upset stomach, diarrhea, metallic taste.",
+        advice: "Take right after meals to avoid stomach irritation."
+      },
+      "paracetamol": {
+        treats: "Fever, Body Pain, & Headaches",
+        description: "Relieves mild to moderate pain and reduces high fever temperatures safely.",
+        sideEffects: "Safe at recommended doses. High doses can harm the liver.",
+        advice: "Do not take more than 4,000 mg in a 24-hour period."
+      },
+      "amoxicillin": {
+        treats: "Bacterial Infections (Ear, Throat, Chest, Urinary)",
+        description: "A penicillin antibiotic that stops the growth of harmful bacteria in the body.",
+        sideEffects: "Mild diarrhea, stomach discomfort, skin rash, nausea.",
+        advice: "Finish the full prescribed course even if feeling better."
+      },
+      "atorvastatin": {
+        treats: "High Cholesterol & Heart Disease Risk",
+        description: "Lowers bad cholesterol (LDL) and triglycerides to protect blood vessels and heart health.",
+        sideEffects: "Muscle soreness, joint discomfort, mild fatigue.",
+        advice: "Take once daily, usually at night."
+      },
+      "amlodipine": {
+        treats: "High Blood Pressure (Hypertension) & Chest Pain (Angina)",
+        description: "Relaxes blood vessels so blood can flow more easily, lowering blood pressure.",
+        sideEffects: "Swelling in feet/ankles, dizziness, flushing.",
+        advice: "Get up slowly from sitting or lying down."
+      },
+      "ibuprofen": {
+        treats: "Inflammation, Joint Pain, Toothache, & Fever",
+        description: "An NSAID pain reliever that reduces swelling, pain, and fever.",
+        sideEffects: "Stomach burning, acid reflux, nausea.",
+        advice: "Always consume immediately after food."
+      }
+    };
+
+    let currentPreviewData = null;
+    let isPreviewExpanded = false;
+
+    function generatePurchaseUrl(medName) {
+      return "https://www.google.com/search?tbm=shop&q=buy+" + encodeURIComponent(medName) + "+medicine+online";
+    }
+
+    function getStoredData(key) {
+      try {
+        const item = localStorage.getItem(key);
+        return item ? JSON.parse(item) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function setStoredData(key, value) {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch (e) {}
+    }
+
+    function removeStoredData(key) {
+      try {
+        localStorage.removeItem(key);
+      } catch (e) {}
+    }
+
+    let currentUser = null;
+    let medicines = [];
+    let onlineCache = {};
+    let alarmAudioContext = null;
+    let alarmInterval = null;
+    let sosTimer = null;
+    let activeAlarmInfo = null; // { medId, doseIndex }
+    let textSizeLevel = 0;
+
+    document.addEventListener('DOMContentLoaded', function() {
+      currentUser = getStoredData('mediMateUser');
+      medicines = getStoredData('mediMateMeds') || [];
+
+      // Migration check to support array of times
+      medicines = medicines.map(function(m) {
+        if (!Array.isArray(m.times)) {
+          const defaultTimes = m.time ? [m.time] : ["08:00"];
+          const defaultTaken = Array.isArray(m.takenDoses) ? m.takenDoses : [Boolean(m.takenToday)];
+          return Object.assign({}, m, {
+            times: defaultTimes,
+            takenDoses: defaultTaken,
+            duration: m.duration || "life",
+            startDate: m.startDate || new Date().toISOString().split('T')[0]
+          });
+        }
+        return m;
+      });
+
+      checkUserStatus();
+      updateClock();
+      generateTimePickers();
+      setInterval(updateClock, 1000);
+      setInterval(checkAlarmSchedule, 10000);
+
+      let searchDebounce;
+      const medInput = document.getElementById('med-name');
+      if (medInput) {
+        medInput.addEventListener('input', function(e) {
+          clearTimeout(searchDebounce);
+          const name = e.target.value.trim();
+          if (name.length >= 3) {
+            searchDebounce = setTimeout(function() { searchMedicineOnline(true); }, 700);
+          } else {
+            document.getElementById('search-preview-box').style.display = 'none';
+          }
+        });
+      }
+    });
+
+    function generateTimePickers() {
+      const count = parseInt(document.getElementById('med-frequency').value, 10) || 1;
+      const container = document.getElementById('scheduled-times-container');
+      
+      let html = '';
+      for (let i = 0; i < count; i++) {
+        let defaultTime = "08:00";
+        if (count === 2) defaultTime = i === 0 ? "08:00" : "20:00";
+        if (count === 3) defaultTime = i === 0 ? "08:00" : (i === 1 ? "14:00" : "20:00");
+        if (count === 4) defaultTime = i === 0 ? "08:00" : (i === 1 ? "12:00" : (i === 2 ? "16:00" : "20:00"));
+
+        html += '<div>' +
+                  '<label class="block text-sm font-bold text-gray-700 mb-1"><i class="fa-regular fa-clock text-blue-600"></i> Scheduled Time (Dose ' + (i + 1) + ' of ' + count + ')</label>' +
+                  '<input type="time" class="med-time-input w-full p-3.5 border-2 border-blue-200 rounded-2xl focus:border-blue-600 focus:outline-none text-lg font-bold" value="' + defaultTime + '" required>' +
+                '</div>';
+      }
+      container.innerHTML = html;
+    }
+
+    function checkUserStatus() {
+      const onboardingScreen = document.getElementById('onboarding-screen');
+      const mainApp = document.getElementById('main-app');
+
+      if (currentUser && currentUser.name) {
+        onboardingScreen.style.display = 'none';
+        mainApp.style.display = 'block';
+        
+        document.getElementById('profile-display-name').innerText = "Hello, " + currentUser.name + "!";
+        document.getElementById('profile-display-details').innerText = "Age: " + currentUser.age + " years | Blood Group: " + currentUser.blood;
+        
+        renderSchedule();
+        renderKnowledgeBase();
+      } else {
+        onboardingScreen.style.display = 'flex';
+        mainApp.style.display = 'none';
+      }
+    }
+
+    function saveUserProfile(event) {
+      if (event) event.preventDefault();
+
+      const nameInput = document.getElementById('user-name').value.trim();
+      const ageInput = document.getElementById('user-age').value.trim();
+      const bloodInput = document.getElementById('user-blood').value;
+
+      if (!nameInput || !ageInput || !bloodInput) {
+        alert("Please complete all profile details.");
+        return false;
+      }
+
+      currentUser = { name: nameInput, age: ageInput, blood: bloodInput };
+      setStoredData('mediMateUser', currentUser);
+      checkUserStatus();
+      speakText("Welcome to MediMate, " + currentUser.name + ". Your profile is ready.");
+      return false;
+    }
+
+    function resetProfile() {
+      if (confirm("Reset profile and schedule?")) {
+        removeStoredData('mediMateUser');
+        removeStoredData('mediMateMeds');
+        currentUser = null;
+        medicines = [];
+        checkUserStatus();
+      }
+    }
+
+    function toggleTextSize() {
+      const htmlEl = document.documentElement;
+      const btnLabel = document.getElementById('text-size-btn-label');
+      
+      htmlEl.classList.remove('text-size-md', 'text-size-lg', 'text-size-xl');
+      textSizeLevel = (textSizeLevel + 1) % 4;
+
+      let levelText = "Normal";
+      if (textSizeLevel === 1) {
+        htmlEl.classList.add('text-size-md');
+        levelText = "Medium (+12%)";
+      } else if (textSizeLevel === 2) {
+        htmlEl.classList.add('text-size-lg');
+        levelText = "Large (+25%)";
+      } else if (textSizeLevel === 3) {
+        htmlEl.classList.add('text-size-xl');
+        levelText = "Extra Large (+38%)";
+      }
+
+      if (btnLabel) btnLabel.innerText = "Text Size (" + levelText + ")";
+      showToast("Text Size: " + levelText);
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast-notify');
+      const msgSpan = document.getElementById('toast-msg');
+      if (toast && msgSpan) {
+        msgSpan.innerText = message;
+        toast.classList.remove('hidden');
+        toast.classList.add('flex');
+        setTimeout(function() {
+          toast.classList.add('hidden');
+          toast.classList.remove('flex');
+        }, 2200);
+      }
+    }
+
+    // ONLINE MEDICINE SEARCH WITH TREATS & SIDE-EFFECTS FETCHING
+    async function searchMedicineOnline(isAuto) {
+      const medNameInput = document.getElementById('med-name').value.trim();
+      const previewBox = document.getElementById('search-preview-box');
+      const descText = document.getElementById('online-desc-text');
+      const buyArea = document.getElementById('buy-action-area');
+      const buyBtn = document.getElementById('buy-now-btn');
+      const readMoreBtn = document.getElementById('preview-read-more-btn');
+
+      if (!medNameInput) {
+        if (!isAuto) alert("Please enter a medicine name first!");
+        return;
+      }
+
+      previewBox.style.display = 'block';
+      buyArea.style.display = 'none';
+      readMoreBtn.style.display = 'none';
+      descText.innerHTML = '<i class="fa-solid fa-spinner animate-spin text-indigo-600"></i> Searching medical database for <b>"' + medNameInput + '"</b>...';
+
+      const key = medNameInput.toLowerCase();
+
+      if (onlineCache[key]) {
+        renderAIPreview(medNameInput, onlineCache[key]);
+        return;
+      }
+
+      if (localDrugDatabase[key]) {
+        onlineCache[key] = localDrugDatabase[key];
+        renderAIPreview(medNameInput, localDrugDatabase[key]);
+        return;
+      }
+
+      // Query FDA Label Database
+      try {
+        const response = await fetch('https://api.fda.gov/drug/label.json?search=openfda.brand_name:"' + encodeURIComponent(medNameInput) + '"+openfda.generic_name:"' + encodeURIComponent(medNameInput) + '"&limit=1');
+        
+        if (response.ok) {
+          const data = await response.json();
+          const result = data.results[0];
+
+          let purpose = result.purpose ? result.purpose[0] : (result.indications_and_usage ? result.indications_and_usage[0] : "Prescription or clinical medication.");
+          let sideEffects = result.warnings ? result.warnings[0] : (result.adverse_reactions ? result.adverse_reactions[0] : "Consult your pharmacist or physician.");
+
+          const fdaInfo = {
+            treats: "General Clinical Indications / Infection / Pain",
+            description: purpose,
+            sideEffects: sideEffects,
+            advice: "Sourced from official FDA drug data."
+          };
+
+          onlineCache[key] = fdaInfo;
+          renderAIPreview(medNameInput, fdaInfo);
+          return;
+        }
+      } catch (err) {
+        console.warn("FDA Lookup failed:", err);
+      }
+
+      // Fallback
+      const defaultInfo = {
+        treats: "Prescribed Medical Condition",
+        description: medNameInput.toUpperCase() + " is an active medicine used under clinical recommendation.",
+        sideEffects: "Consult a healthcare professional or review packaging for detailed drug safety.",
+        advice: "Follow doctor's instructions."
+      };
+      onlineCache[key] = defaultInfo;
+      renderAIPreview(medNameInput, defaultInfo);
+    }
+
+    function renderAIPreview(medName, info) {
+      const buyArea = document.getElementById('buy-action-area');
+      const buyBtn = document.getElementById('buy-now-btn');
+      const readMoreBtn = document.getElementById('preview-read-more-btn');
+
+      currentPreviewData = { medName: medName, info: info };
+      isPreviewExpanded = false;
+
+      updatePreviewHtml();
+
+      buyBtn.href = generatePurchaseUrl(medName);
+      buyArea.style.display = 'flex';
+
+      const totalLen = (info.description || '').length + (info.sideEffects || '').length;
+      if (totalLen > 150) {
+        readMoreBtn.style.display = 'inline-flex';
+      } else {
+        readMoreBtn.style.display = 'none';
+      }
+    }
+
+    function toggleReadMorePreview() {
+      isPreviewExpanded = !isPreviewExpanded;
+      updatePreviewHtml();
+    }
+
+    function updatePreviewHtml() {
+      if (!currentPreviewData) return;
+
+      const medName = currentPreviewData.medName;
+      const info = currentPreviewData.info;
+      const descText = document.getElementById('online-desc-text');
+      const btnLabel = document.getElementById('preview-btn-label');
+      const readIcon = document.getElementById('preview-read-icon');
+
+      let treats = info.treats ? info.treats : "General Condition";
+      let desc = info.description || "";
+      let side = info.sideEffects || "";
+
+      if (!isPreviewExpanded && (desc.length + side.length > 150)) {
+        if (desc.length > 120) desc = desc.substring(0, 120) + "...";
+        if (side.length > 80) side = side.substring(0, 80) + "...";
+      }
+
+      descText.innerHTML = "<div class=\"p-2 bg-indigo-100/70 rounded-xl mb-2 text-indigo-950 font-bold\"><i class=\"fa-solid fa-notes-medical text-indigo-600\"></i> <b>Used For Treats:</b> " + treats + "</div>" +
+                         "<div><b>Action / Details:</b> " + desc + "</div>" +
+                         "<div class=\"text-xs text-red-600 mt-1 font-semibold\"><b>Side Effects:</b> " + side + "</div>";
+
+      if (btnLabel && readIcon) {
+        btnLabel.innerText = isPreviewExpanded ? "Read Less" : "Read More";
+        readIcon.className = isPreviewExpanded ? "fa-solid fa-chevron-up text-[10px]" : "fa-solid fa-chevron-down text-[10px]";
+      }
+    }
+
+    function toggleCardReadMore(cardId) {
+      const shortEl = document.getElementById('card-short-' + cardId);
+      const fullEl = document.getElementById('card-full-' + cardId);
+      const btnEl = document.getElementById('card-btn-' + cardId);
+
+      if (shortEl && fullEl && btnEl) {
+        if (shortEl.style.display === "none") {
+          shortEl.style.display = "block";
+          fullEl.style.display = "none";
+          btnEl.innerText = "Read More";
+        } else {
+          shortEl.style.display = "none";
+          fullEl.style.display = "block";
+          btnEl.innerText = "Read Less";
+        }
+      }
+    }
+
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock-display').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function handleAddMedicine(event) {
+      if (event) event.preventDefault();
+
+      const name = document.getElementById('med-name').value.trim();
+      const dosage = document.getElementById('med-dosage').value.trim();
+      const frequency = document.getElementById('med-frequency').value;
+      const duration = document.getElementById('med-duration').value;
+      const food = document.getElementById('med-food').value;
+
+      const timeInputs = document.querySelectorAll('.med-time-input');
+      const times = [];
+      timeInputs.forEach(function(inp) {
+        times.push(inp.value);
+      });
+
+      const newMed = {
+        id: Date.now(),
+        name: name,
+        dosage: dosage,
+        frequency: frequency,
+        duration: duration,
+        times: times,
+        food: food,
+        takenDoses: new Array(times.length).fill(false),
+        startDate: new Date().toISOString().split('T')[0],
+        lastResetDate: new Date().toDateString()
+      };
+
+      medicines.push(newMed);
+      saveAndRefresh();
+
+      document.getElementById('med-form').reset();
+      generateTimePickers();
+      document.getElementById('search-preview-box').style.display = 'none';
+      speakText("Added " + name + " to your MediMate schedule.");
+      return false;
+    }
+
+    function toggleDoseTaken(medId, doseIndex) {
+      medicines = medicines.map(function(m) {
+        if (m.id === medId) {
+          const updatedTaken = Array.isArray(m.takenDoses) ? [...m.takenDoses] : new Array(m.times.length).fill(false);
+          updatedTaken[doseIndex] = !updatedTaken[doseIndex];
+          return Object.assign({}, m, { takenDoses: updatedTaken });
+        }
+        return m;
+      });
+      saveAndRefresh();
+      
+      if (activeAlarmInfo && activeAlarmInfo.medId === medId && activeAlarmInfo.doseIndex === doseIndex) {
+        stopAlarm();
+      }
+    }
+
+    function handleAlarmTakenAction() {
+      if (activeAlarmInfo) {
+        toggleDoseTaken(activeAlarmInfo.medId, activeAlarmInfo.doseIndex);
+      } else {
+        stopAlarm();
+      }
+    }
+
+    function deleteMedicine(id) {
+      medicines = medicines.filter(function(m) { return m.id !== id; });
+      saveAndRefresh();
+      if (activeAlarmInfo && activeAlarmInfo.medId === id) stopAlarm();
+    }
+
+    function saveAndRefresh() {
+      setStoredData('mediMateMeds', medicines);
+      renderSchedule();
+      renderKnowledgeBase();
+    }
+
+    function renderSchedule() {
+      const listContainer = document.getElementById('med-list');
+      const todayStr = new Date().toDateString();
+
+      // Reset daily dose check on a new calendar day
+      medicines = medicines.map(function(m) {
+        if (m.lastResetDate !== todayStr) {
+          return Object.assign({}, m, {
+            takenDoses: new Array(m.times ? m.times.length : 1).fill(false),
+            lastResetDate: todayStr
+          });
+        }
+        return m;
+      });
+
+      if (medicines.length === 0) {
+        listContainer.innerHTML = '<div class="text-center py-10 text-gray-500"><i class="fa-solid fa-capsules text-5xl mb-3 text-blue-300"></i><p class="text-xl font-bold">No medicines added yet.</p></div>';
+        return;
+      }
+
+      listContainer.innerHTML = medicines.map(function(med) {
+        const key = med.name.toLowerCase();
+        const info = onlineCache[key] || localDrugDatabase[key] || { treats: "Medical Treatment", sideEffects: "Consult pharmacist for details.", description: "Prescription medication." };
+        const buyUrl = generatePurchaseUrl(med.name);
+
+        const treatsText = info.treats ? info.treats : "Prescribed Condition";
+        const shortDesc = info.description.length > 100 ? info.description.substring(0, 100) + "..." : info.description;
+        const shortSide = info.sideEffects.length > 70 ? info.sideEffects.substring(0, 70) + "..." : info.sideEffects;
+        const hasLongText = info.description.length > 100 || info.sideEffects.length > 70;
+
+        const durationBadge = med.duration === 'life' ? 'Entire Life' : (med.duration + ' Day Course');
+
+        let html = '<div class="p-5 rounded-3xl border-3 bg-white border-blue-200 shadow-md transition space-y-4">';
+        
+        // Top Card Header
+        html += '<div class="flex flex-wrap justify-between items-start gap-3 pb-3 border-b border-blue-100">';
+        html += '<div>';
+        html += '<div class="flex items-center gap-2 flex-wrap">';
+        html += '<h3 class="text-2xl font-black text-blue-900">' + med.name + '</h3>';
+        html += '<span class="bg-blue-100 text-blue-800 font-extrabold px-3 py-1 rounded-lg text-sm">' + med.dosage + '</span>';
+        html += '<span class="bg-indigo-100 text-indigo-800 font-black px-2.5 py-1 rounded-lg text-xs flex items-center gap-1"><i class="fa-solid fa-calendar-check text-indigo-600"></i> ' + durationBadge + '</span>';
+        html += '</div>';
+        html += '<p class="text-sm text-gray-600 mt-1.5"><i class="fa-solid fa-repeat text-blue-600 font-bold"></i> <b>' + med.frequency + 'x Daily</b> | <i class="fa-solid fa-utensils text-blue-600 font-bold"></i> <b>' + med.food + '</b></p>';
+        html += '</div>';
+
+        html += '<div class="flex items-center gap-2 flex-wrap">';
+        html += '<a href="' + buyUrl + '" target="_blank" rel="noopener noreferrer" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center gap-1 shadow"><i class="fa-solid fa-cart-shopping"></i> Buy Now</a>';
+        html += '<button type="button" onclick="speakMedicineInfo(\'' + med.name + '\', \'' + med.dosage + '\', \'' + med.food + '\')" class="p-2.5 bg-blue-100 text-blue-800 rounded-xl hover:bg-blue-200 text-base shadow"><i class="fa-solid fa-volume-high"></i></button>';
+        html += '<button type="button" onclick="deleteMedicine(' + med.id + ')" class="p-2.5 text-red-500 hover:text-red-700 text-base"><i class="fa-solid fa-trash"></i></button>';
+        html += '</div></div>';
+
+        // Individual Dose Schedules Section
+        html += '<div class="space-y-2">';
+        html += '<h4 class="text-sm font-extrabold text-blue-950 flex items-center gap-1.5"><i class="fa-regular fa-clock text-blue-600"></i> Individual Dose Schedule</h4>';
+        html += '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">';
+        
+        const times = Array.isArray(med.times) ? med.times : [med.time];
+        const takenDoses = Array.isArray(med.takenDoses) ? med.takenDoses : [false];
+
+        times.forEach(function(timeVal, idx) {
+          const isTaken = takenDoses[idx] || false;
+          const subCardBg = isTaken ? 'bg-emerald-50 border-emerald-300' : 'bg-blue-50/60 border-blue-200';
+          const subBtnStyle = isTaken ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-blue-600 text-white hover:bg-blue-700';
+
+          html += '<div class="p-3.5 rounded-2xl border-2 ' + subCardBg + ' flex items-center justify-between gap-3 shadow-sm transition">';
+          html += '<div class="flex items-center space-x-3">';
+          html += '<div class="w-10 h-10 rounded-full ' + (isTaken ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600') + ' flex items-center justify-center font-bold text-lg"><i class="fa-regular fa-clock"></i></div>';
+          html += '<div>';
+          html += '<div class="text-xl font-black text-gray-900">' + formatTime(timeVal) + '</div>';
+          html += '<div class="text-xs font-bold text-gray-500">Dose ' + (idx + 1) + ' of ' + times.length + ' • ' + med.food + '</div>';
+          html += '</div></div>';
+
+          html += '<button type="button" onclick="toggleDoseTaken(' + med.id + ', ' + idx + ')" class="px-3.5 py-2 rounded-xl font-black text-xs ' + subBtnStyle + ' shadow flex items-center gap-1 transition active:scale-95 cursor-pointer">';
+          html += isTaken ? '<i class="fa-solid fa-check"></i> Taken' : 'Mark Taken';
+          html += '</button>';
+          html += '</div>';
+        });
+
+        html += '</div></div>';
+
+        // Information / Treats / Side Effects
+        html += '<div class="text-sm bg-blue-50/80 p-3.5 rounded-2xl border border-blue-200 space-y-1 mt-2">';
+        html += '<p class="text-indigo-900 font-bold"><i class="fa-solid fa-virus-slash text-indigo-600"></i> <b>Treats / Used For:</b> ' + treatsText + '</p>';
+        html += '<div id="card-short-' + med.id + '"><p class="text-gray-800"><i class="fa-solid fa-robot text-indigo-600"></i> <b>Action:</b> ' + shortDesc + '</p><p class="text-red-700 font-semibold"><i class="fa-solid fa-triangle-exclamation"></i> <b>Side Effects:</b> ' + shortSide + '</p></div>';
+        html += '<div id="card-full-' + med.id + '" style="display: none;"><p class="text-gray-800"><i class="fa-solid fa-robot text-indigo-600"></i> <b>Action:</b> ' + info.description + '</p><p class="text-red-700 font-semibold"><i class="fa-solid fa-triangle-exclamation"></i> <b>Side Effects:</b> ' + info.sideEffects + '</p></div>';
+        
+        if (hasLongText) {
+          html += '<button type="button" id="card-btn-' + med.id + '" onclick="toggleCardReadMore(' + med.id + ')" class="mt-1 text-indigo-700 font-bold text-xs underline focus:outline-none">Read More</button>';
+        }
+        html += '</div></div>';
+
+        return html;
+      }).join('');
+    }
+
+    function renderKnowledgeBase() {
+      const kbContainer = document.getElementById('knowledge-base');
+      const keys = Object.keys(localDrugDatabase);
+
+      kbContainer.innerHTML = keys.map(function(key) {
+        const item = localDrugDatabase[key];
+        const buyUrl = generatePurchaseUrl(key);
+        return '<div class="p-4 bg-blue-50/70 rounded-2xl border border-blue-200 flex flex-col gap-3">' +
+                 '<div class="space-y-1">' +
+                   '<h4 class="font-extrabold text-blue-950 capitalize text-lg flex items-center gap-2">' +
+                     '<span>' + key + '</span>' +
+                     '<span class="text-xs bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-md">Verified</span>' +
+                   '</h4>' +
+                   '<p class="text-sm text-indigo-900 font-bold"><b>Treats:</b> ' + item.treats + '</p>' +
+                   '<p class="text-sm text-gray-800"><b>Action:</b> ' + item.description + '</p>' +
+                   '<p class="text-sm text-red-600 font-medium"><b>Side Effects:</b> ' + item.sideEffects + '</p>' +
+                 '</div>' +
+                 '<div class="pt-2 border-t border-blue-200/60 flex items-center justify-start">' +
+                   '<a href="' + buyUrl + '" target="_blank" rel="noopener noreferrer" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow transition transform active:scale-95">' +
+                     '<i class="fa-solid fa-bag-shopping"></i> Buy Now' +
+                   '</a>' +
+                 '</div>' +
+               '</div>';
+      }).join('');
+    }
+
+    function formatTime(timeStr) {
+      if(!timeStr) return '';
+      const parts = timeStr.split(':');
+      const hour = parseInt(parts[0], 10);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const formattedHour = hour % 12 || 12;
+      return formattedHour + ':' + parts[1] + ' ' + ampm;
+    }
+
+    function isCourseActive(med) {
+      if (!med.duration || med.duration === 'life') return true;
+      const durationDays = parseInt(med.duration, 10);
+      if (isNaN(durationDays)) return true;
+
+      const startDate = new Date(med.startDate);
+      const today = new Date();
+      
+      startDate.setHours(0,0,0,0);
+      today.setHours(0,0,0,0);
+
+      const diffTime = today - startDate;
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      
+      return diffDays < durationDays;
+    }
+
+    function checkAlarmSchedule() {
+      const now = new Date();
+      const currentHours = String(now.getHours()).padStart(2, '0');
+      const currentMinutes = String(now.getMinutes()).padStart(2, '0');
+      const currentTimeStr = currentHours + ':' + currentMinutes;
+
+      medicines.forEach(function(med) {
+        if (!isCourseActive(med)) return;
+
+        const times = Array.isArray(med.times) ? med.times : [med.time];
+        const takenDoses = Array.isArray(med.takenDoses) ? med.takenDoses : [false];
+
+        times.forEach(function(tVal, idx) {
+          if (tVal === currentTimeStr && !takenDoses[idx]) {
+            triggerAlarm(med, idx);
+          }
+        });
+      });
+    }
+
+    function triggerAlarm(med, doseIndex) {
+      activeAlarmInfo = { medId: med.id, doseIndex: doseIndex };
+      const banner = document.getElementById('alarm-banner');
+      const text = document.getElementById('alarm-text');
+
+      text.innerText = "Please take " + med.name + " (Dose " + (doseIndex + 1) + " of " + med.times.length + " - " + med.dosage + ") - Instructions: " + med.food;
+      banner.style.display = 'block';
+
+      speakText("MediMate Reminder! It is time for dose " + (doseIndex + 1) + " of your medicine: " + med.name + ", " + med.dosage);
+
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("MediMate Reminder", { body: "Time for " + med.name + " (Dose " + (doseIndex + 1) + ")" });
+      }
+
+      startAudioBeep();
+    }
+
+    function startAudioBeep() {
+      if (alarmAudioContext) return;
+      try {
+        alarmAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+        alarmInterval = setInterval(function() {
+          const osc = alarmAudioContext.createOscillator();
+          const gain = alarmAudioContext.createGain();
+          osc.connect(gain);
+          gain.connect(alarmAudioContext.destination);
+          osc.type = "sine";
+          osc.frequency.value = 800;
+          gain.gain.setValueAtTime(0.15, alarmAudioContext.currentTime);
+          osc.start();
+          osc.stop(alarmAudioContext.currentTime + 0.35);
+        }, 700);
+      } catch (e) {}
+    }
+
+    function stopAlarm() {
+      document.getElementById('alarm-banner').style.display = 'none';
+      activeAlarmInfo = null;
+
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+
+      if (alarmInterval) {
+        clearInterval(alarmInterval);
+        alarmInterval = null;
+      }
+      if (alarmAudioContext) {
+        try { alarmAudioContext.close(); } catch(e) {}
+        alarmAudioContext = null;
+      }
+    }
+
+    function speakText(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 0.85;
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    function speakWelcomeMessage() {
+      if (currentUser) {
+        speakText("MediMate profile for " + currentUser.name + ". Age " + currentUser.age + ". Blood group " + currentUser.blood + ".");
+      }
+    }
+
+    function speakMedicineInfo(name, dosage, food) {
+      speakText("Medicine name: " + name + ". Daily Dose: " + dosage + ". Instructions: Take " + food + ".");
+    }
+
+    function toggleContrast() {
+      document.body.classList.toggle('high-contrast');
+    }
+
+    function requestNotificationPermission() {
+      if ("Notification" in window) {
+        Notification.requestPermission().then(function(permission) {
+          if (permission === "granted") alert("MediMate Alerts Enabled!");
+        });
+      }
+    }
+
+    function triggerSosCallSequence() {
+      if (confirm("Initiate Emergency SOS Call?")) {
+        if (confirm("Confirm dispatching emergency services?")) {
+          executeSimulatedSosCall();
+        }
+      }
+    }
+
+    function executeSimulatedSosCall() {
+      const sosModal = document.getElementById('sos-modal');
+      const statusText = document.getElementById('sos-status-text');
+      const progressBar = document.getElementById('sos-progress-bar');
+      
+      sosModal.style.display = 'flex';
+      startAudioBeep();
+
+      speakText("Emergency S O S initiated! Transmitting location and medical profile.");
+
+      let stage = 1;
+      sosTimer = setInterval(function() {
+        stage++;
+        if (stage === 2) {
+          statusText.innerText = "Transmitting Blood Group & Profile...";
+          progressBar.style.width = "50%";
+        } else if (stage === 3) {
+          statusText.innerText = "Dispatch Operator Connected...";
+          progressBar.style.width = "85%";
+        } else if (stage === 4) {
+          statusText.innerText = "Emergency Team En Route!";
+          progressBar.style.width = "100%";
+        }
+      }, 2500);
+    }
+
+    function cancelSosCall() {
+      if (sosTimer) clearInterval(sosTimer);
+      document.getElementById('sos-modal').style.display = 'none';
+      stopAlarm();
+      speakText("Emergency S O S call cancelled.");
+    }
+  </script>
+</body>
+</html>
